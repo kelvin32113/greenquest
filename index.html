@@ -57,7 +57,6 @@
                     <div class="bg-white/70 backdrop-blur-sm rounded-full px-4 py-1 flex items-center shadow"><span id="level-text" class="font-bold text-emerald-700 mr-3">Lv.1</span><div class="w-24 bg-gray-300 rounded-full h-4"><div id="xp-bar" class="bg-gradient-to-r from-yellow-400 to-amber-500 h-4 rounded-full" style="width: 0%;"></div></div><span id="xp-value" class="text-xs font-bold text-gray-600 ml-2">0/10</span></div>
                     <div class="flex gap-2">
                         <button id="achievements-btn" class="bg-white/70 backdrop-blur-sm rounded-full px-3 py-2 flex items-center shadow hover:bg-white/90 transition-colors"><span class="text-2xl">🏆</span></button>
-                <button id="settings-btn" class="bg-white/70 backdrop-blur-sm rounded-full px-3 py-2 flex items-center shadow hover:bg-white/90 transition-colors"><span class="text-2xl">⚙️</span></button>
                         <div class="bg-white/70 backdrop-blur-sm rounded-full px-3 py-2 flex items-center shadow"><span class="text-2xl">🌿</span><span id="seed-count" class="font-bold text-emerald-700 ml-2">10</span></div>
                     </div>
                 </header>
@@ -273,95 +272,6 @@
         setTimeout(() => modal.classList.add('hidden'), 300);
     }
 
-    // --- OpenAI API Key helpers (store in localStorage) ---
-    // We'll call OpenAI's Chat Completions endpoint to generate JSON responses.
-    // NOTE: Calling OpenAI directly from the browser exposes your API key to the client and may be blocked by CORS.
-    // Prefer using a server-side proxy for production. This in-page implementation matches your request to only modify index.html.
-    const OPENAI_KEY_STORAGE = 'OPENAI_API_KEY';
-
-    function getOpenAIApiKey() {
-        try { return localStorage.getItem(OPENAI_KEY_STORAGE) || ''; } catch (e) { return ''; }
-    }
-
-    function saveOpenAIApiKey(key) {
-        try { localStorage.setItem(OPENAI_KEY_STORAGE, key || ''); } catch (e) { console.error('無法儲存 OpenAI key', e); }
-    }
-
-    function maskedKeyDisplay(key) {
-        if (!key) return '(未設定)';
-        if (key.length <= 8) return key.replace(/.(?=.{4})/g, '*');
-        return key.slice(0,4) + '...' + key.slice(-4);
-    }
-
-    function showSettingsModal() {
-        const currentKey = getOpenAIApiKey();
-        const content = `
-            <h3 class="text-2xl font-bold mb-3">設定 OpenAI API Key</h3>
-            <p class="text-sm text-gray-600 mb-4">請輸入您的 OpenAI API 金鑰。本遊戲會將金鑰儲存在本機瀏覽器的 localStorage，僅在此裝置上生效。注意：直接在瀏覽器使用金鑰會暴露給終端使用者，若為公開部署請改用 server 代理。</p>
-            <div class="mb-4 text-left">
-                <label class="text-sm font-medium text-gray-700">目前金鑰</label>
-                <div class="mt-1 p-3 bg-gray-100 rounded">${maskedKeyDisplay(currentKey)}</div>
-            </div>
-            <input id="openai-key-input" type="text" placeholder="輸入 OpenAI API Key" value="${currentKey}" class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
-            <div class="flex gap-3">
-                <button id="save-openai-key" class="modal-close-btn btn bg-emerald-500 text-white font-bold py-2 px-4 rounded-full">儲存</button>
-                <button id="test-openai-key" class="btn bg-emerald-200 text-emerald-800 font-bold py-2 px-4 rounded-full">測試金鑰</button>
-                <button id="clear-openai-key" class="btn bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full">清除</button>
-            </div>
-            <p class="text-xs text-gray-500 mt-3">提示：若尚未設定金鑰，部分 AI 功能會無法使用。</p>
-        `;
-        showModal(content, () => {});
-
-        setTimeout(() => {
-            const saveBtn = document.getElementById('save-openai-key');
-            const clearBtn = document.getElementById('clear-openai-key');
-            const input = document.getElementById('openai-key-input');
-            const testBtn = document.getElementById('test-openai-key');
-            if (saveBtn) saveBtn.addEventListener('click', () => {
-                const val = input.value.trim();
-                saveOpenAIApiKey(val);
-                hideModal();
-                queueNotification(`<div class="text-4xl mb-2">🔐</div><h3 class="text-lg font-bold">金鑰已儲存</h3><p class="text-sm text-gray-600">已將金鑰儲存在本機。</p>`, () => {});
-            });
-            if (testBtn) testBtn.addEventListener('click', async () => {
-                const val = input.value.trim();
-                // show a small loading modal
-                showModal(`<div class="animate-spin rounded-full h-12 w-12 border-b-4 border-emerald-500 mx-auto mb-4"></div><p class="text-sm text-gray-600">正在測試金鑰，請稍候...</p>`);
-                try {
-                    const result = await testOpenAIKey(val);
-                    hideModal();
-                    const okMsg = result.ok ? `<div class="text-4xl mb-2">✅</div><h3 class="text-lg font-bold">金鑰可用</h3><p class="text-sm text-gray-600">已成功連線至 OpenAI。</p>` : `<div class="text-4xl mb-2">❌</div><h3 class="text-lg font-bold">測試失敗</h3><p class="text-sm text-gray-600">${result.message}</p>`;
-                    queueNotification(okMsg, () => {});
-                } catch (err) {
-                    hideModal();
-                    queueNotification(`<div class="text-4xl mb-2">❌</div><h3 class="text-lg font-bold">測試失敗</h3><p class="text-sm text-gray-600">${err && err.message ? err.message : err}</p>`, () => {});
-                }
-            });
-            if (clearBtn) clearBtn.addEventListener('click', () => {
-                saveOpenAIApiKey('');
-                hideModal();
-                queueNotification(`<div class="text-4xl mb-2">🗑️</div><h3 class="text-lg font-bold">已清除金鑰</h3><p class="text-sm text-gray-600">本機的 OpenAI 金鑰已移除。</p>`, () => {});
-            });
-        }, 10);
-    }
-
-    // Test OpenAI key by calling a lightweight endpoint (list models)
-    async function testOpenAIKey(key) {
-        if (!key) return { ok: false, message: '金鑰為空' };
-        const API_URL = `https://api.openai.com/v1/models`;
-        try {
-            const resp = await fetch(API_URL, { method: 'GET', headers: { 'Authorization': `Bearer ${key}` } });
-            if (!resp.ok) {
-                const text = await resp.text();
-                return { ok: false, message: `HTTP ${resp.status}: ${text}` };
-            }
-            const json = await resp.json();
-            return { ok: true, message: JSON.stringify(json).slice(0, 200) };
-        } catch (e) {
-            return { ok: false, message: e.message || String(e) };
-        }
-    }
-
     function navigateTo(screenName) {
         Object.values(screens).forEach(s => s && s.classList.add('hidden'));
         if (screens[screenName]) screens[screenName].classList.remove('hidden');
@@ -477,7 +387,7 @@
         const loadingContent = `<div class="text-6xl mb-4">🌿</div><h3 class="text-2xl font-bold mb-2">${plant.name}</h3><p class="text-sm text-gray-500 italic mb-4">${plant.scientificName || ''}</p><div class="animate-spin rounded-full h-12 w-12 border-b-4 border-emerald-500 mx-auto mb-4"></div><p class="text-gray-600">AI 正在生成詳細資訊...</p>`;
         showModal(loadingContent);
         
-    const prompt = `請為以下植物生成詳細介紹，嚴格按照JSON格式回傳：
+        const prompt = `請為以下植物生成詳細介紹，嚴格按照JSON格式回傳：
         植物名稱：${plant.name}
         ${plant.scientificName ? `學名：${plant.scientificName}` : ''}
         植物類型：${plant.type}
@@ -485,52 +395,19 @@
         請提供以下資訊：
         { "flowerLanguage": "該植物的花語（如果有的話，沒有則回傳空字串）", "bloomingSeason": "該植物的花期或生長季節", "description": "簡短描述該植物的特徵、生長環境、用途等（約50-80字）" }`;
         
-        const API_KEY = getOpenAIApiKey();
-        if (!API_KEY) {
-            showModal(`<div class="text-6xl mb-4">🔑</div><h3 class="text-2xl font-bold mb-2">未設定 OpenAI API Key</h3><p class="text-gray-600 mb-6">請先在設定中輸入您的 OpenAI API Key，才能使用植物詳細資訊功能。</p><div class="flex gap-2 justify-center"><button id="goto-settings" class="btn bg-emerald-500 text-white font-bold py-2 px-4 rounded-full">前往設定</button><button class="modal-close-btn btn bg-gray-200 text-gray-800 py-2 px-4 rounded-full">取消</button></div>`);
-            setTimeout(() => {
-                const btn = document.getElementById('goto-settings');
-                if (btn) btn.addEventListener('click', () => { hideModal(); showSettingsModal(); });
-            }, 10);
-            return;
-        }
-
-        const API_URL = `https://api.openai.com/v1/chat/completions`;
-        const systemMsg = `你是一位專業的植物學家，請依據使用者提供的資訊與圖片（若有），提供結構化的 JSON 回應。嚴格只回傳 JSON，內容必須包含欄位: flowerLanguage, bloomingSeason, description。`;
-        const body = {
-            model: 'gpt-3.5-turbo',
-            messages: [
-                { role: 'system', content: systemMsg },
-                { role: 'user', content: prompt }
-            ],
-            temperature: 0.2,
-            max_tokens: 400
+        const API_KEY = "AIzaSyCg-v9lqnzUYV0UXaAVBIz8eOWZH5QKcQo";
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`;
+        const payload = { 
+            contents: [{ role: "user", parts: [{ text: prompt }] }], 
+            generationConfig: { responseMimeType: "application/json" } 
         };
-
+        
         try {
-            const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` }, body: JSON.stringify(body) });
+            const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`API 請求失敗: ${response.status}`);
             const result = await response.json();
-            const text = (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) ? result.choices[0].message.content : null;
-            if (!text) throw new Error('API 未回傳有效文字內容');
-
-            let detailData = {};
-            try {
-                detailData = JSON.parse(text);
-            } catch (e) {
-                // 嘗試從文字中抽出 JSON 部分
-                const match = text.match(/\{[\s\S]*\}/);
-                if (match) {
-                    detailData = JSON.parse(match[0]);
-                } else {
-                    throw new Error('無法解析 OpenAI 回應為 JSON');
-                }
-            }
-
-            detailData.flowerLanguage = detailData.flowerLanguage || detailData.flower_language || '';
-            detailData.bloomingSeason = detailData.bloomingSeason || detailData.blooming_season || detailData.season || '';
-            detailData.description = detailData.description || detailData.desc || '';
-
+            const detailData = JSON.parse(result.candidates[0].content.parts[0].text);
+            
             const flowerLanguageHtml = detailData.flowerLanguage ? `<div class="mb-3"><p class="text-sm font-semibold text-emerald-700">花語</p><p class="text-sm text-gray-700">${detailData.flowerLanguage}</p></div>` : '';
             const scientificNameHtml = plant.scientificName ? `<p class="text-sm text-gray-500 italic mb-4">${plant.scientificName}</p>` : '';
             
@@ -681,60 +558,12 @@
 請確保學名（scientificName）準確無誤，並優先使用香港及華南地區的常見植物名稱。
 
 { "plantName": "植物的中文名稱", "scientificName": "植物的拉丁學名（例如：Bauhinia × blakeana）", "plantType": "判斷植物屬於'非維管植物'、'蕨類植物'、'雙子葉植物'、'單子葉植物'、'裸子植物'或'非植物'", "funFact": "一段關於此植物的簡短有趣知識", "quiz": { "question": "根據知識點設計一個單選題", "options": ["選項A", "選項B", "正確答案C"], "correctAnswerIndex": 2 } }`;
-        const API_KEY = getOpenAIApiKey();
-        if (!API_KEY) {
-            // If no key, inform user and stop processing
-            showModal(`<div class="text-6xl mb-4">🔑</div><h3 class="text-2xl font-bold mb-2">未設定 OpenAI API Key</h3><p class="text-gray-600 mb-6">請先在設定中輸入您的 OpenAI API Key，才能使用辨識功能。</p><div class="flex gap-2 justify-center"><button id="goto-settings-2" class="btn bg-emerald-500 text-white font-bold py-2 px-4 rounded-full">前往設定</button><button class="modal-close-btn btn bg-gray-200 text-gray-800 py-2 px-4 rounded-full">取消</button></div>`);
-            setTimeout(() => {
-                const btn = document.getElementById('goto-settings-2');
-                if (btn) btn.addEventListener('click', () => { hideModal(); showSettingsModal(); });
-            }, 10);
-            navigateTo('home');
-            gameState.isProcessing = false;
-            return;
-        }
-
-        // Resize image client-side to reduce payload size before sending to OpenAI
-        let resizedBase64 = base64ImageData;
-        try {
-            const img = await new Promise((resolve, reject) => {
-                const i = new Image();
-                i.onload = () => resolve(i);
-                i.onerror = reject;
-                i.src = imageSrc;
-            });
-            const maxDim = 512;
-            const ratio = Math.min(1, maxDim / Math.max(img.width, img.height));
-            const w = Math.round(img.width * ratio);
-            const h = Math.round(img.height * ratio);
-            const tmp = document.createElement('canvas');
-            tmp.width = w; tmp.height = h;
-            const ctx = tmp.getContext('2d');
-            ctx.drawImage(img, 0, 0, w, h);
-            resizedBase64 = tmp.toDataURL('image/png').split(',')[1];
-        } catch (e) {
-            console.warn('圖片縮放失敗，將使用原始圖片', e);
-            resizedBase64 = base64ImageData;
-        }
-
-        const API_URL = `https://api.openai.com/v1/chat/completions`;
-        const systemMsg = `你是一位專業的植物學家，請參考香港植物標本室（Hong Kong Herbarium）的分類標準來辨識圖片中的植物，並嚴格按照 JSON 格式回答，欄位格式如下：{ "plantName":..., "scientificName":..., "plantType":..., "funFact":..., "quiz": {"question":..., "options": [...], "correctAnswerIndex": <index> } }。若無法辨識請將 plantType 設為 "非植物"。`;
-
-        // Include the (resized) base64 inline in the user message. Note: large payloads may fail or be truncated.
-        const userContent = prompt + `\n\nIMAGE_BASE64(resized): ${resizedBase64}` + `\n\n注意：請僅回傳純 JSON，不要多餘說明`;
-
-        const body = {
-            model: 'gpt-3.5-turbo',
-            messages: [
-                { role: 'system', content: systemMsg },
-                { role: 'user', content: userContent }
-            ],
-            temperature: 0.0,
-            max_tokens: 800
-        };
+        const API_KEY = "AIzaSyBEQ5gklJF1MQ0pfb_b9gGdxO8Ywm95BsM";
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`;
+        const payload = { contents: [{ role: "user", parts: [ { text: prompt }, { inlineData: { mimeType: "image/png", data: base64ImageData } } ] }], generationConfig: { responseMimeType: "application/json" } };
 
         try {
-            const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` }, body: JSON.stringify(body) });
+            const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error(`API 請求失敗: ${response.status}`, errorText);
@@ -742,49 +571,36 @@
             }
             const result = await response.json();
             console.log('API Response:', result);
-
-            const text = (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) ? result.choices[0].message.content : null;
-            if (!text) throw new Error('OpenAI 未回傳內容');
-
-            // Try to parse JSON from the model's reply
-            let data = {};
-            try {
-                data = JSON.parse(text);
-            } catch (e) {
-                const match = text.match(/\{[\s\S]*\}/);
-                if (match) data = JSON.parse(match[0]);
-                else throw new Error('無法解析 OpenAI 回應為 JSON');
+            
+            if (!result.candidates || !result.candidates[0] || !result.candidates[0].content || !result.candidates[0].content.parts || !result.candidates[0].content.parts[0]) {
+                console.error('API 回應格式錯誤:', result);
+                throw new Error('API 回應格式不正確');
             }
-
-            const mapped = {
-                plantName: data.plantName || data.name || data.common_name || data.species || '',
-                scientificName: data.scientificName || data.scientific_name || data.latin_name || '',
-                plantType: data.plantType || data.type || data.category || '',
-                funFact: data.funFact || data.fun_fact || data.note || '',
-                quiz: data.quiz || data.test || null
-            };
-            console.log('Parsed plant data (mapped):', mapped);
-
+            
+            const data = JSON.parse(result.candidates[0].content.parts[0].text);
+            console.log('Parsed plant data:', data);
+            
             const validTypes = ['非維管植物', '蕨類植物', '雙子葉植物', '單子葉植物', '裸子植物'];
-            if (!validTypes.includes(mapped.plantType)) {
+            if (!validTypes.includes(data.plantType)) {
                 showModal(`<div class="text-6xl mb-4">🤔</div><h3 class="text-2xl font-bold mb-2">這不是植物喔</h3><p class="text-gray-600 mb-6">AI 認為這張圖片不是植物，請換一張照片再試一次吧！</p><button class="modal-close-btn btn bg-emerald-500 text-white font-bold py-2 px-6 rounded-full">好的</button>`, () => {
                     navigateTo('home');
                     gameState.isProcessing = false;
                 });
                 return;
             }
-            if (mapped.plantName && !gameState.pokedex[mapped.plantName]) {
-                gameState.pokedex[mapped.plantName] = {
-                    name: mapped.plantName,
-                    scientificName: mapped.scientificName || '',
-                    type: mapped.plantType,
-                    image: imageSrc,
-                    fact: mapped.funFact
+
+            if (data.plantName && !gameState.pokedex[data.plantName]) {
+                gameState.pokedex[data.plantName] = { 
+                    name: data.plantName, 
+                    scientificName: data.scientificName || '',
+                    type: data.plantType, 
+                    image: imageSrc, 
+                    fact: data.funFact 
                 };
             }
-
+            
             const today = getTodayString();
-            const type = mapped.plantType;
+            const type = data.plantType;
             
             if (type === '非維管植物' && gameState.tasks.feedNonVascular && !gameState.tasks.feedNonVascular.completedToday) {
                 gameState.tasks.feedNonVascular.completedToday = true;
@@ -803,8 +619,8 @@
                 gameState.tasks.feedGymnosperm.lastFeedDate = today;
             }
             
-            gameState.currentQuiz = mapped.quiz;
-            displayResultAndQuiz({ plantName: mapped.plantName, scientificName: mapped.scientificName, plantType: mapped.plantType, funFact: mapped.funFact, quiz: mapped.quiz }, imageSrc);
+            gameState.currentQuiz = data.quiz;
+            displayResultAndQuiz(data, imageSrc);
         } catch (error) {
             console.error("API 處理錯誤:", error);
             showModal(`<div class="text-6xl mb-4">😢</div><h3 class="text-2xl font-bold mb-2">分析失敗</h3><p class="text-gray-600 mb-6">無法辨識圖片，請換一張試試。</p><button class="modal-close-btn btn bg-emerald-500 text-white font-bold py-2 px-6 rounded-full">繼續</button>`, () => {
@@ -997,8 +813,6 @@
         });
         document.getElementById('feed-btn-trigger').addEventListener('click', showFeedOptions);
         document.getElementById('achievements-btn').addEventListener('click', () => { navigateTo('achievements'); renderAchievements(); });
-    const settingsBtn = document.getElementById('settings-btn');
-    if (settingsBtn) settingsBtn.addEventListener('click', () => { showSettingsModal(); });
         Object.keys(navButtons).forEach(key => { if (navButtons[key]) navButtons[key].addEventListener('click', () => navigateTo(key)); });
         captureBtn.addEventListener('click', capturePhoto);
         cancelCameraBtn.addEventListener('click', () => { stopCamera(); navigateTo('home'); });
