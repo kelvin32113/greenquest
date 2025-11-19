@@ -273,20 +273,18 @@
         setTimeout(() => modal.classList.add('hidden'), 300);
     }
 
-    // --- Deepseek API Key helpers (store in localStorage) ---
-    // NOTE: 我在沒有官方 Deepseek API 文件的情況下做了合理假設：
-    // - Deepseek 使用 Bearer authorization header: Authorization: Bearer <API_KEY>
-    // - 圖片辨識 endpoint: POST https://api.deepseek.ai/v1/identify   (body: { image: <base64> } 或 { image_url: <url> })
-    // - 詳細資訊 endpoint: POST https://api.deepseek.ai/v1/details     (body: { name: <plantName> } 或 { image_url: <url> })
-    // 如果你有 Deepseek 官方文件或不同的 endpoint，請提供，我會根據文件調整實作。
-    const DEEPSEEK_KEY_STORAGE = 'DEEPSEEK_API_KEY';
+    // --- OpenAI API Key helpers (store in localStorage) ---
+    // We'll call OpenAI's Chat Completions endpoint to generate JSON responses.
+    // NOTE: Calling OpenAI directly from the browser exposes your API key to the client and may be blocked by CORS.
+    // Prefer using a server-side proxy for production. This in-page implementation matches your request to only modify index.html.
+    const OPENAI_KEY_STORAGE = 'OPENAI_API_KEY';
 
-    function getDeepseekApiKey() {
-        try { return localStorage.getItem(DEEPSEEK_KEY_STORAGE) || ''; } catch (e) { return ''; }
+    function getOpenAIApiKey() {
+        try { return localStorage.getItem(OPENAI_KEY_STORAGE) || ''; } catch (e) { return ''; }
     }
 
-    function saveDeepseekApiKey(key) {
-        try { localStorage.setItem(DEEPSEEK_KEY_STORAGE, key || ''); } catch (e) { console.error('無法儲存 Deepseek key', e); }
+    function saveOpenAIApiKey(key) {
+        try { localStorage.setItem(OPENAI_KEY_STORAGE, key || ''); } catch (e) { console.error('無法儲存 OpenAI key', e); }
     }
 
     function maskedKeyDisplay(key) {
@@ -296,32 +294,32 @@
     }
 
     function showSettingsModal() {
-        const currentKey = getDeepseekApiKey();
+        const currentKey = getOpenAIApiKey();
         const content = `
-            <h3 class="text-2xl font-bold mb-3">設定 Deepseek API Key</h3>
-            <p class="text-sm text-gray-600 mb-4">請輸入您的 Deepseek API 金鑰。本遊戲會將金鑰儲存在本機瀏覽器的 localStorage，僅在此裝置上生效。</p>
+            <h3 class="text-2xl font-bold mb-3">設定 OpenAI API Key</h3>
+            <p class="text-sm text-gray-600 mb-4">請輸入您的 OpenAI API 金鑰。本遊戲會將金鑰儲存在本機瀏覽器的 localStorage，僅在此裝置上生效。注意：直接在瀏覽器使用金鑰會暴露給終端使用者，若為公開部署請改用 server 代理。</p>
             <div class="mb-4 text-left">
                 <label class="text-sm font-medium text-gray-700">目前金鑰</label>
                 <div class="mt-1 p-3 bg-gray-100 rounded">${maskedKeyDisplay(currentKey)}</div>
             </div>
-            <input id="deepseek-key-input" type="text" placeholder="輸入 Deepseek API Key" value="${currentKey}" class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+            <input id="openai-key-input" type="text" placeholder="輸入 OpenAI API Key" value="${currentKey}" class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
             <div class="flex gap-3">
-                <button id="save-deepseek-key" class="modal-close-btn btn bg-emerald-500 text-white font-bold py-2 px-4 rounded-full">儲存</button>
-                <button id="test-deepseek-key" class="btn bg-emerald-200 text-emerald-800 font-bold py-2 px-4 rounded-full">測試金鑰</button>
-                <button id="clear-deepseek-key" class="btn bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full">清除</button>
+                <button id="save-openai-key" class="modal-close-btn btn bg-emerald-500 text-white font-bold py-2 px-4 rounded-full">儲存</button>
+                <button id="test-openai-key" class="btn bg-emerald-200 text-emerald-800 font-bold py-2 px-4 rounded-full">測試金鑰</button>
+                <button id="clear-openai-key" class="btn bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full">清除</button>
             </div>
             <p class="text-xs text-gray-500 mt-3">提示：若尚未設定金鑰，部分 AI 功能會無法使用。</p>
         `;
         showModal(content, () => {});
 
         setTimeout(() => {
-            const saveBtn = document.getElementById('save-deepseek-key');
-            const clearBtn = document.getElementById('clear-deepseek-key');
-            const input = document.getElementById('deepseek-key-input');
-            const testBtn = document.getElementById('test-deepseek-key');
+            const saveBtn = document.getElementById('save-openai-key');
+            const clearBtn = document.getElementById('clear-openai-key');
+            const input = document.getElementById('openai-key-input');
+            const testBtn = document.getElementById('test-openai-key');
             if (saveBtn) saveBtn.addEventListener('click', () => {
                 const val = input.value.trim();
-                saveDeepseekApiKey(val);
+                saveOpenAIApiKey(val);
                 hideModal();
                 queueNotification(`<div class="text-4xl mb-2">🔐</div><h3 class="text-lg font-bold">金鑰已儲存</h3><p class="text-sm text-gray-600">已將金鑰儲存在本機。</p>`, () => {});
             });
@@ -330,9 +328,9 @@
                 // show a small loading modal
                 showModal(`<div class="animate-spin rounded-full h-12 w-12 border-b-4 border-emerald-500 mx-auto mb-4"></div><p class="text-sm text-gray-600">正在測試金鑰，請稍候...</p>`);
                 try {
-                    const result = await testDeepseekKey(val);
+                    const result = await testOpenAIKey(val);
                     hideModal();
-                    const okMsg = result.ok ? `<div class="text-4xl mb-2">✅</div><h3 class="text-lg font-bold">金鑰可用</h3><p class="text-sm text-gray-600">已成功連線至 Deepseek API。</p>` : `<div class="text-4xl mb-2">❌</div><h3 class="text-lg font-bold">測試失敗</h3><p class="text-sm text-gray-600">${result.message}</p>`;
+                    const okMsg = result.ok ? `<div class="text-4xl mb-2">✅</div><h3 class="text-lg font-bold">金鑰可用</h3><p class="text-sm text-gray-600">已成功連線至 OpenAI。</p>` : `<div class="text-4xl mb-2">❌</div><h3 class="text-lg font-bold">測試失敗</h3><p class="text-sm text-gray-600">${result.message}</p>`;
                     queueNotification(okMsg, () => {});
                 } catch (err) {
                     hideModal();
@@ -340,21 +338,19 @@
                 }
             });
             if (clearBtn) clearBtn.addEventListener('click', () => {
-                saveDeepseekApiKey('');
+                saveOpenAIApiKey('');
                 hideModal();
-                queueNotification(`<div class="text-4xl mb-2">🗑️</div><h3 class="text-lg font-bold">已清除金鑰</h3><p class="text-sm text-gray-600">本機的 Deepseek 金鑰已移除。</p>`, () => {});
+                queueNotification(`<div class="text-4xl mb-2">🗑️</div><h3 class="text-lg font-bold">已清除金鑰</h3><p class="text-sm text-gray-600">本機的 OpenAI 金鑰已移除。</p>`, () => {});
             });
         }, 10);
     }
 
-    // Test Deepseek key by calling a lightweight identify request
-    async function testDeepseekKey(key) {
+    // Test OpenAI key by calling a lightweight endpoint (list models)
+    async function testOpenAIKey(key) {
         if (!key) return { ok: false, message: '金鑰為空' };
-        const API_URL = `https://api.deepseek.ai/v1/identify`;
-        // We send a minimal JSON payload; Deepseek 的實際 API 參數可能不同，若有官方範例請提供以便調整
-        const payload = { test: true };
+        const API_URL = `https://api.openai.com/v1/models`;
         try {
-            const resp = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` }, body: JSON.stringify(payload) });
+            const resp = await fetch(API_URL, { method: 'GET', headers: { 'Authorization': `Bearer ${key}` } });
             if (!resp.ok) {
                 const text = await resp.text();
                 return { ok: false, message: `HTTP ${resp.status}: ${text}` };
@@ -489,33 +485,48 @@
         請提供以下資訊：
         { "flowerLanguage": "該植物的花語（如果有的話，沒有則回傳空字串）", "bloomingSeason": "該植物的花期或生長季節", "description": "簡短描述該植物的特徵、生長環境、用途等（約50-80字）" }`;
         
-        const API_KEY = getDeepseekApiKey();
+        const API_KEY = getOpenAIApiKey();
         if (!API_KEY) {
-            showModal(`<div class="text-6xl mb-4">🔑</div><h3 class="text-2xl font-bold mb-2">未設定 Deepseek API Key</h3><p class="text-gray-600 mb-6">請先在設定中輸入您的 Deepseek API Key，才能使用植物詳細資訊功能。</p><div class="flex gap-2 justify-center"><button id="goto-settings" class="btn bg-emerald-500 text-white font-bold py-2 px-4 rounded-full">前往設定</button><button class="modal-close-btn btn bg-gray-200 text-gray-800 py-2 px-4 rounded-full">取消</button></div>`);
+            showModal(`<div class="text-6xl mb-4">🔑</div><h3 class="text-2xl font-bold mb-2">未設定 OpenAI API Key</h3><p class="text-gray-600 mb-6">請先在設定中輸入您的 OpenAI API Key，才能使用植物詳細資訊功能。</p><div class="flex gap-2 justify-center"><button id="goto-settings" class="btn bg-emerald-500 text-white font-bold py-2 px-4 rounded-full">前往設定</button><button class="modal-close-btn btn bg-gray-200 text-gray-800 py-2 px-4 rounded-full">取消</button></div>`);
             setTimeout(() => {
                 const btn = document.getElementById('goto-settings');
                 if (btn) btn.addEventListener('click', () => { hideModal(); showSettingsModal(); });
             }, 10);
             return;
         }
-    const API_URL = `https://api.deepseek.ai/v1/details`;
-        const payload = {
-            name: plant.name,
-            image_url: plant.image
+
+        const API_URL = `https://api.openai.com/v1/chat/completions`;
+        const systemMsg = `你是一位專業的植物學家，請依據使用者提供的資訊與圖片（若有），提供結構化的 JSON 回應。嚴格只回傳 JSON，內容必須包含欄位: flowerLanguage, bloomingSeason, description。`;
+        const body = {
+            model: 'gpt-3.5-turbo',
+            messages: [
+                { role: 'system', content: systemMsg },
+                { role: 'user', content: prompt }
+            ],
+            temperature: 0.2,
+            max_tokens: 400
         };
 
         try {
-            const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` }, body: JSON.stringify(payload) });
+            const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` }, body: JSON.stringify(body) });
             if (!response.ok) throw new Error(`API 請求失敗: ${response.status}`);
             const result = await response.json();
+            const text = (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) ? result.choices[0].message.content : null;
+            if (!text) throw new Error('API 未回傳有效文字內容');
 
-            // Deepseek 回傳格式不確定 — 我們支援數種常見欄位命名
-            let detailData = result;
-            if (result.data) detailData = result.data;
-            if (result.result) detailData = result.result;
-            if (result.detail) detailData = result.detail;
+            let detailData = {};
+            try {
+                detailData = JSON.parse(text);
+            } catch (e) {
+                // 嘗試從文字中抽出 JSON 部分
+                const match = text.match(/\{[\s\S]*\}/);
+                if (match) {
+                    detailData = JSON.parse(match[0]);
+                } else {
+                    throw new Error('無法解析 OpenAI 回應為 JSON');
+                }
+            }
 
-            // 常見欄位映射
             detailData.flowerLanguage = detailData.flowerLanguage || detailData.flower_language || '';
             detailData.bloomingSeason = detailData.bloomingSeason || detailData.blooming_season || detailData.season || '';
             detailData.description = detailData.description || detailData.desc || '';
@@ -670,10 +681,10 @@
 請確保學名（scientificName）準確無誤，並優先使用香港及華南地區的常見植物名稱。
 
 { "plantName": "植物的中文名稱", "scientificName": "植物的拉丁學名（例如：Bauhinia × blakeana）", "plantType": "判斷植物屬於'非維管植物'、'蕨類植物'、'雙子葉植物'、'單子葉植物'、'裸子植物'或'非植物'", "funFact": "一段關於此植物的簡短有趣知識", "quiz": { "question": "根據知識點設計一個單選題", "options": ["選項A", "選項B", "正確答案C"], "correctAnswerIndex": 2 } }`;
-        const API_KEY = getDeepseekApiKey();
+        const API_KEY = getOpenAIApiKey();
         if (!API_KEY) {
             // If no key, inform user and stop processing
-            showModal(`<div class="text-6xl mb-4">🔑</div><h3 class="text-2xl font-bold mb-2">未設定 Deepseek API Key</h3><p class="text-gray-600 mb-6">請先在設定中輸入您的 Deepseek API Key，才能使用辨識功能。</p><div class="flex gap-2 justify-center"><button id="goto-settings-2" class="btn bg-emerald-500 text-white font-bold py-2 px-4 rounded-full">前往設定</button><button class="modal-close-btn btn bg-gray-200 text-gray-800 py-2 px-4 rounded-full">取消</button></div>`);
+            showModal(`<div class="text-6xl mb-4">🔑</div><h3 class="text-2xl font-bold mb-2">未設定 OpenAI API Key</h3><p class="text-gray-600 mb-6">請先在設定中輸入您的 OpenAI API Key，才能使用辨識功能。</p><div class="flex gap-2 justify-center"><button id="goto-settings-2" class="btn bg-emerald-500 text-white font-bold py-2 px-4 rounded-full">前往設定</button><button class="modal-close-btn btn bg-gray-200 text-gray-800 py-2 px-4 rounded-full">取消</button></div>`);
             setTimeout(() => {
                 const btn = document.getElementById('goto-settings-2');
                 if (btn) btn.addEventListener('click', () => { hideModal(); showSettingsModal(); });
@@ -682,11 +693,48 @@
             gameState.isProcessing = false;
             return;
         }
-    const API_URL = `https://api.deepseek.ai/v1/identify`;
-        const payload = { image: base64ImageData, return_quiz: true, return_details: true };
+
+        // Resize image client-side to reduce payload size before sending to OpenAI
+        let resizedBase64 = base64ImageData;
+        try {
+            const img = await new Promise((resolve, reject) => {
+                const i = new Image();
+                i.onload = () => resolve(i);
+                i.onerror = reject;
+                i.src = imageSrc;
+            });
+            const maxDim = 512;
+            const ratio = Math.min(1, maxDim / Math.max(img.width, img.height));
+            const w = Math.round(img.width * ratio);
+            const h = Math.round(img.height * ratio);
+            const tmp = document.createElement('canvas');
+            tmp.width = w; tmp.height = h;
+            const ctx = tmp.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            resizedBase64 = tmp.toDataURL('image/png').split(',')[1];
+        } catch (e) {
+            console.warn('圖片縮放失敗，將使用原始圖片', e);
+            resizedBase64 = base64ImageData;
+        }
+
+        const API_URL = `https://api.openai.com/v1/chat/completions`;
+        const systemMsg = `你是一位專業的植物學家，請參考香港植物標本室（Hong Kong Herbarium）的分類標準來辨識圖片中的植物，並嚴格按照 JSON 格式回答，欄位格式如下：{ "plantName":..., "scientificName":..., "plantType":..., "funFact":..., "quiz": {"question":..., "options": [...], "correctAnswerIndex": <index> } }。若無法辨識請將 plantType 設為 "非植物"。`;
+
+        // Include the (resized) base64 inline in the user message. Note: large payloads may fail or be truncated.
+        const userContent = prompt + `\n\nIMAGE_BASE64(resized): ${resizedBase64}` + `\n\n注意：請僅回傳純 JSON，不要多餘說明`;
+
+        const body = {
+            model: 'gpt-3.5-turbo',
+            messages: [
+                { role: 'system', content: systemMsg },
+                { role: 'user', content: userContent }
+            ],
+            temperature: 0.0,
+            max_tokens: 800
+        };
 
         try {
-            const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` }, body: JSON.stringify(payload) });
+            const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` }, body: JSON.stringify(body) });
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error(`API 請求失敗: ${response.status}`, errorText);
@@ -695,12 +743,19 @@
             const result = await response.json();
             console.log('API Response:', result);
 
-            // Map Deepseek response to expected fields. Many APIs return { data: {...} } or { result: {...} }
-            let data = result;
-            if (result.data) data = result.data;
-            if (result.result) data = result.result;
+            const text = (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) ? result.choices[0].message.content : null;
+            if (!text) throw new Error('OpenAI 未回傳內容');
 
-            // Normalize common field names
+            // Try to parse JSON from the model's reply
+            let data = {};
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                const match = text.match(/\{[\s\S]*\}/);
+                if (match) data = JSON.parse(match[0]);
+                else throw new Error('無法解析 OpenAI 回應為 JSON');
+            }
+
             const mapped = {
                 plantName: data.plantName || data.name || data.common_name || data.species || '',
                 scientificName: data.scientificName || data.scientific_name || data.latin_name || '',
