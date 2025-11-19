@@ -273,15 +273,20 @@
         setTimeout(() => modal.classList.add('hidden'), 300);
     }
 
-    // --- Gemini API Key helpers (store in localStorage) ---
-    const GEMINI_KEY_STORAGE = 'GEMINI_API_KEY';
+    // --- Deepseek API Key helpers (store in localStorage) ---
+    // NOTE: 我在沒有官方 Deepseek API 文件的情況下做了合理假設：
+    // - Deepseek 使用 Bearer authorization header: Authorization: Bearer <API_KEY>
+    // - 圖片辨識 endpoint: POST https://api.deepseek.ai/v1/identify   (body: { image: <base64> } 或 { image_url: <url> })
+    // - 詳細資訊 endpoint: POST https://api.deepseek.ai/v1/details     (body: { name: <plantName> } 或 { image_url: <url> })
+    // 如果你有 Deepseek 官方文件或不同的 endpoint，請提供，我會根據文件調整實作。
+    const DEEPSEEK_KEY_STORAGE = 'DEEPSEEK_API_KEY';
 
-    function getGeminiApiKey() {
-        try { return localStorage.getItem(GEMINI_KEY_STORAGE) || ''; } catch (e) { return ''; }
+    function getDeepseekApiKey() {
+        try { return localStorage.getItem(DEEPSEEK_KEY_STORAGE) || ''; } catch (e) { return ''; }
     }
 
-    function saveGeminiApiKey(key) {
-        try { localStorage.setItem(GEMINI_KEY_STORAGE, key || ''); } catch (e) { console.error('無法儲存 Gemini key', e); }
+    function saveDeepseekApiKey(key) {
+        try { localStorage.setItem(DEEPSEEK_KEY_STORAGE, key || ''); } catch (e) { console.error('無法儲存 Deepseek key', e); }
     }
 
     function maskedKeyDisplay(key) {
@@ -291,32 +296,32 @@
     }
 
     function showSettingsModal() {
-        const currentKey = getGeminiApiKey();
+        const currentKey = getDeepseekApiKey();
         const content = `
-            <h3 class="text-2xl font-bold mb-3">設定 Gemini API Key</h3>
-            <p class="text-sm text-gray-600 mb-4">請輸入您的 Gemini（Generative Language）API 金鑰。本遊戲會將金鑰儲存在本機瀏覽器的 localStorage，僅在此裝置上生效。</p>
+            <h3 class="text-2xl font-bold mb-3">設定 Deepseek API Key</h3>
+            <p class="text-sm text-gray-600 mb-4">請輸入您的 Deepseek API 金鑰。本遊戲會將金鑰儲存在本機瀏覽器的 localStorage，僅在此裝置上生效。</p>
             <div class="mb-4 text-left">
                 <label class="text-sm font-medium text-gray-700">目前金鑰</label>
                 <div class="mt-1 p-3 bg-gray-100 rounded">${maskedKeyDisplay(currentKey)}</div>
             </div>
-            <input id="gemini-key-input" type="text" placeholder="輸入 Gemin e API Key" value="${currentKey}" class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+            <input id="deepseek-key-input" type="text" placeholder="輸入 Deepseek API Key" value="${currentKey}" class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
             <div class="flex gap-3">
-                <button id="save-gemini-key" class="modal-close-btn btn bg-emerald-500 text-white font-bold py-2 px-4 rounded-full">儲存</button>
-                <button id="test-gemini-key" class="btn bg-emerald-200 text-emerald-800 font-bold py-2 px-4 rounded-full">測試金鑰</button>
-                <button id="clear-gemini-key" class="btn bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full">清除</button>
+                <button id="save-deepseek-key" class="modal-close-btn btn bg-emerald-500 text-white font-bold py-2 px-4 rounded-full">儲存</button>
+                <button id="test-deepseek-key" class="btn bg-emerald-200 text-emerald-800 font-bold py-2 px-4 rounded-full">測試金鑰</button>
+                <button id="clear-deepseek-key" class="btn bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full">清除</button>
             </div>
             <p class="text-xs text-gray-500 mt-3">提示：若尚未設定金鑰，部分 AI 功能會無法使用。</p>
         `;
         showModal(content, () => {});
 
         setTimeout(() => {
-            const saveBtn = document.getElementById('save-gemini-key');
-            const clearBtn = document.getElementById('clear-gemini-key');
-            const input = document.getElementById('gemini-key-input');
-            const testBtn = document.getElementById('test-gemini-key');
+            const saveBtn = document.getElementById('save-deepseek-key');
+            const clearBtn = document.getElementById('clear-deepseek-key');
+            const input = document.getElementById('deepseek-key-input');
+            const testBtn = document.getElementById('test-deepseek-key');
             if (saveBtn) saveBtn.addEventListener('click', () => {
                 const val = input.value.trim();
-                saveGeminiApiKey(val);
+                saveDeepseekApiKey(val);
                 hideModal();
                 queueNotification(`<div class="text-4xl mb-2">🔐</div><h3 class="text-lg font-bold">金鑰已儲存</h3><p class="text-sm text-gray-600">已將金鑰儲存在本機。</p>`, () => {});
             });
@@ -325,9 +330,9 @@
                 // show a small loading modal
                 showModal(`<div class="animate-spin rounded-full h-12 w-12 border-b-4 border-emerald-500 mx-auto mb-4"></div><p class="text-sm text-gray-600">正在測試金鑰，請稍候...</p>`);
                 try {
-                    const result = await testGeminiKey(val);
+                    const result = await testDeepseekKey(val);
                     hideModal();
-                    const okMsg = result.ok ? `<div class="text-4xl mb-2">✅</div><h3 class="text-lg font-bold">金鑰可用</h3><p class="text-sm text-gray-600">已成功連線至 Gemini API。</p>` : `<div class="text-4xl mb-2">❌</div><h3 class="text-lg font-bold">測試失敗</h3><p class="text-sm text-gray-600">${result.message}</p>`;
+                    const okMsg = result.ok ? `<div class="text-4xl mb-2">✅</div><h3 class="text-lg font-bold">金鑰可用</h3><p class="text-sm text-gray-600">已成功連線至 Deepseek API。</p>` : `<div class="text-4xl mb-2">❌</div><h3 class="text-lg font-bold">測試失敗</h3><p class="text-sm text-gray-600">${result.message}</p>`;
                     queueNotification(okMsg, () => {});
                 } catch (err) {
                     hideModal();
@@ -335,24 +340,21 @@
                 }
             });
             if (clearBtn) clearBtn.addEventListener('click', () => {
-                saveGeminiApiKey('');
+                saveDeepseekApiKey('');
                 hideModal();
-                queueNotification(`<div class="text-4xl mb-2">🗑️</div><h3 class="text-lg font-bold">已清除金鑰</h3><p class="text-sm text-gray-600">本機的 Gemini 金鑰已移除。</p>`, () => {});
+                queueNotification(`<div class="text-4xl mb-2">🗑️</div><h3 class="text-lg font-bold">已清除金鑰</h3><p class="text-sm text-gray-600">本機的 Deepseek 金鑰已移除。</p>`, () => {});
             });
         }, 10);
     }
 
-    // Test Gemini key by calling a lightweight generateContent request
-    async function testGeminiKey(key) {
+    // Test Deepseek key by calling a lightweight identify request
+    async function testDeepseekKey(key) {
         if (!key) return { ok: false, message: '金鑰為空' };
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent?key=${key}`;
-        // Minimal prompt to test connectivity
-        const payload = {
-            contents: [{ role: 'user', parts: [{ text: '請回傳一個簡短的字串: 測試' }] }],
-            generationConfig: { responseMimeType: 'text/plain' }
-        };
+        const API_URL = `https://api.deepseek.ai/v1/identify`;
+        // We send a minimal JSON payload; Deepseek 的實際 API 參數可能不同，若有官方範例請提供以便調整
+        const payload = { test: true };
         try {
-            const resp = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const resp = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` }, body: JSON.stringify(payload) });
             if (!resp.ok) {
                 const text = await resp.text();
                 return { ok: false, message: `HTTP ${resp.status}: ${text}` };
@@ -487,27 +489,37 @@
         請提供以下資訊：
         { "flowerLanguage": "該植物的花語（如果有的話，沒有則回傳空字串）", "bloomingSeason": "該植物的花期或生長季節", "description": "簡短描述該植物的特徵、生長環境、用途等（約50-80字）" }`;
         
-        const API_KEY = getGeminiApiKey();
+        const API_KEY = getDeepseekApiKey();
         if (!API_KEY) {
-            showModal(`<div class="text-6xl mb-4">🔑</div><h3 class="text-2xl font-bold mb-2">未設定 Gemini API Key</h3><p class="text-gray-600 mb-6">請先在設定中輸入您的 Gemini API Key，才能使用植物詳細資訊功能。</p><div class="flex gap-2 justify-center"><button id="goto-settings" class="btn bg-emerald-500 text-white font-bold py-2 px-4 rounded-full">前往設定</button><button class="modal-close-btn btn bg-gray-200 text-gray-800 py-2 px-4 rounded-full">取消</button></div>`);
+            showModal(`<div class="text-6xl mb-4">🔑</div><h3 class="text-2xl font-bold mb-2">未設定 Deepseek API Key</h3><p class="text-gray-600 mb-6">請先在設定中輸入您的 Deepseek API Key，才能使用植物詳細資訊功能。</p><div class="flex gap-2 justify-center"><button id="goto-settings" class="btn bg-emerald-500 text-white font-bold py-2 px-4 rounded-full">前往設定</button><button class="modal-close-btn btn bg-gray-200 text-gray-800 py-2 px-4 rounded-full">取消</button></div>`);
             setTimeout(() => {
                 const btn = document.getElementById('goto-settings');
                 if (btn) btn.addEventListener('click', () => { hideModal(); showSettingsModal(); });
             }, 10);
             return;
         }
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent?key=${API_KEY}`;
-        const payload = { 
-            contents: [{ role: "user", parts: [{ text: prompt }] }], 
-            generationConfig: { responseMimeType: "application/json" } 
+    const API_URL = `https://api.deepseek.ai/v1/details`;
+        const payload = {
+            name: plant.name,
+            image_url: plant.image
         };
-        
+
         try {
-            const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`API 請求失敗: ${response.status}`);
             const result = await response.json();
-            const detailData = JSON.parse(result.candidates[0].content.parts[0].text);
-            
+
+            // Deepseek 回傳格式不確定 — 我們支援數種常見欄位命名
+            let detailData = result;
+            if (result.data) detailData = result.data;
+            if (result.result) detailData = result.result;
+            if (result.detail) detailData = result.detail;
+
+            // 常見欄位映射
+            detailData.flowerLanguage = detailData.flowerLanguage || detailData.flower_language || '';
+            detailData.bloomingSeason = detailData.bloomingSeason || detailData.blooming_season || detailData.season || '';
+            detailData.description = detailData.description || detailData.desc || '';
+
             const flowerLanguageHtml = detailData.flowerLanguage ? `<div class="mb-3"><p class="text-sm font-semibold text-emerald-700">花語</p><p class="text-sm text-gray-700">${detailData.flowerLanguage}</p></div>` : '';
             const scientificNameHtml = plant.scientificName ? `<p class="text-sm text-gray-500 italic mb-4">${plant.scientificName}</p>` : '';
             
@@ -658,10 +670,10 @@
 請確保學名（scientificName）準確無誤，並優先使用香港及華南地區的常見植物名稱。
 
 { "plantName": "植物的中文名稱", "scientificName": "植物的拉丁學名（例如：Bauhinia × blakeana）", "plantType": "判斷植物屬於'非維管植物'、'蕨類植物'、'雙子葉植物'、'單子葉植物'、'裸子植物'或'非植物'", "funFact": "一段關於此植物的簡短有趣知識", "quiz": { "question": "根據知識點設計一個單選題", "options": ["選項A", "選項B", "正確答案C"], "correctAnswerIndex": 2 } }`;
-        const API_KEY = getGeminiApiKey();
+        const API_KEY = getDeepseekApiKey();
         if (!API_KEY) {
             // If no key, inform user and stop processing
-            showModal(`<div class="text-6xl mb-4">🔑</div><h3 class="text-2xl font-bold mb-2">未設定 Gemini API Key</h3><p class="text-gray-600 mb-6">請先在設定中輸入您的 Gemini API Key，才能使用辨識功能。</p><div class="flex gap-2 justify-center"><button id="goto-settings-2" class="btn bg-emerald-500 text-white font-bold py-2 px-4 rounded-full">前往設定</button><button class="modal-close-btn btn bg-gray-200 text-gray-800 py-2 px-4 rounded-full">取消</button></div>`);
+            showModal(`<div class="text-6xl mb-4">🔑</div><h3 class="text-2xl font-bold mb-2">未設定 Deepseek API Key</h3><p class="text-gray-600 mb-6">請先在設定中輸入您的 Deepseek API Key，才能使用辨識功能。</p><div class="flex gap-2 justify-center"><button id="goto-settings-2" class="btn bg-emerald-500 text-white font-bold py-2 px-4 rounded-full">前往設定</button><button class="modal-close-btn btn bg-gray-200 text-gray-800 py-2 px-4 rounded-full">取消</button></div>`);
             setTimeout(() => {
                 const btn = document.getElementById('goto-settings-2');
                 if (btn) btn.addEventListener('click', () => { hideModal(); showSettingsModal(); });
@@ -670,11 +682,11 @@
             gameState.isProcessing = false;
             return;
         }
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent?key=${API_KEY}`;
-        const payload = { contents: [{ role: "user", parts: [ { text: prompt }, { inlineData: { mimeType: "image/png", data: base64ImageData } } ] }], generationConfig: { responseMimeType: "application/json" } };
+    const API_URL = `https://api.deepseek.ai/v1/identify`;
+        const payload = { image: base64ImageData, return_quiz: true, return_details: true };
 
         try {
-            const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` }, body: JSON.stringify(payload) });
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error(`API 請求失敗: ${response.status}`, errorText);
@@ -682,36 +694,42 @@
             }
             const result = await response.json();
             console.log('API Response:', result);
-            
-            if (!result.candidates || !result.candidates[0] || !result.candidates[0].content || !result.candidates[0].content.parts || !result.candidates[0].content.parts[0]) {
-                console.error('API 回應格式錯誤:', result);
-                throw new Error('API 回應格式不正確');
-            }
-            
-            const data = JSON.parse(result.candidates[0].content.parts[0].text);
-            console.log('Parsed plant data:', data);
-            
+
+            // Map Deepseek response to expected fields. Many APIs return { data: {...} } or { result: {...} }
+            let data = result;
+            if (result.data) data = result.data;
+            if (result.result) data = result.result;
+
+            // Normalize common field names
+            const mapped = {
+                plantName: data.plantName || data.name || data.common_name || data.species || '',
+                scientificName: data.scientificName || data.scientific_name || data.latin_name || '',
+                plantType: data.plantType || data.type || data.category || '',
+                funFact: data.funFact || data.fun_fact || data.note || '',
+                quiz: data.quiz || data.test || null
+            };
+            console.log('Parsed plant data (mapped):', mapped);
+
             const validTypes = ['非維管植物', '蕨類植物', '雙子葉植物', '單子葉植物', '裸子植物'];
-            if (!validTypes.includes(data.plantType)) {
+            if (!validTypes.includes(mapped.plantType)) {
                 showModal(`<div class="text-6xl mb-4">🤔</div><h3 class="text-2xl font-bold mb-2">這不是植物喔</h3><p class="text-gray-600 mb-6">AI 認為這張圖片不是植物，請換一張照片再試一次吧！</p><button class="modal-close-btn btn bg-emerald-500 text-white font-bold py-2 px-6 rounded-full">好的</button>`, () => {
                     navigateTo('home');
                     gameState.isProcessing = false;
                 });
                 return;
             }
-
-            if (data.plantName && !gameState.pokedex[data.plantName]) {
-                gameState.pokedex[data.plantName] = { 
-                    name: data.plantName, 
-                    scientificName: data.scientificName || '',
-                    type: data.plantType, 
-                    image: imageSrc, 
-                    fact: data.funFact 
+            if (mapped.plantName && !gameState.pokedex[mapped.plantName]) {
+                gameState.pokedex[mapped.plantName] = {
+                    name: mapped.plantName,
+                    scientificName: mapped.scientificName || '',
+                    type: mapped.plantType,
+                    image: imageSrc,
+                    fact: mapped.funFact
                 };
             }
-            
+
             const today = getTodayString();
-            const type = data.plantType;
+            const type = mapped.plantType;
             
             if (type === '非維管植物' && gameState.tasks.feedNonVascular && !gameState.tasks.feedNonVascular.completedToday) {
                 gameState.tasks.feedNonVascular.completedToday = true;
@@ -730,8 +748,8 @@
                 gameState.tasks.feedGymnosperm.lastFeedDate = today;
             }
             
-            gameState.currentQuiz = data.quiz;
-            displayResultAndQuiz(data, imageSrc);
+            gameState.currentQuiz = mapped.quiz;
+            displayResultAndQuiz({ plantName: mapped.plantName, scientificName: mapped.scientificName, plantType: mapped.plantType, funFact: mapped.funFact, quiz: mapped.quiz }, imageSrc);
         } catch (error) {
             console.error("API 處理錯誤:", error);
             showModal(`<div class="text-6xl mb-4">😢</div><h3 class="text-2xl font-bold mb-2">分析失敗</h3><p class="text-gray-600 mb-6">無法辨識圖片，請換一張試試。</p><button class="modal-close-btn btn bg-emerald-500 text-white font-bold py-2 px-6 rounded-full">繼續</button>`, () => {
