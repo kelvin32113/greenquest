@@ -430,14 +430,25 @@
         請提供以下資訊：
         { "flowerLanguage": "該植物的花語（如果有的話，沒有則回傳空字串）", "bloomingSeason": "該植物的花期或生長季節", "description": "簡短描述該植物的特徵、生長環境、用途等（約50-80字）" }`;
         
-        const API_KEY = "AIzaSyCg-v9lqnzUYV0UXaAVBIz8eOWZH5QKcQo";
-        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`;
+        // 以使用者輸入的 API Key 呼叫 Gemini（若未設定則請使用者到設定頁填入）
+        const apiPath = 'v1beta/models/gemini-2.5-flash-preview-05-20:generateContent';
         const payload = { 
             contents: [{ role: "user", parts: [{ text: prompt }] }], 
             generationConfig: { responseMimeType: "application/json" } 
         };
-        
+
         try {
+            const apiKey = getStoredApiKey();
+            if (!apiKey) {
+                showModal(`<h3 class="text-xl font-bold text-emerald-700 mb-3">未設定 Gemini API Key</h3><p class="text-sm text-gray-600 mb-4">請先到「設定」輸入你的 Gemini API Key 才能使用 AI 詳細資訊功能。</p><button id="open-settings-btn" class="modal-close-btn btn bg-emerald-500 text-white font-bold py-2 px-6 rounded-full">前往設定</button>`);
+                setTimeout(() => {
+                    const btn = document.getElementById('open-settings-btn');
+                    if (btn) btn.addEventListener('click', () => { hideModal(); openSettingsModal(); });
+                }, 50);
+                return;
+            }
+
+            const API_URL = `https://generativelanguage.googleapis.com/${apiPath}?key=${apiKey}`;
             const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`API 請求失敗: ${response.status}`);
             const result = await response.json();
@@ -593,11 +604,21 @@
 請確保學名（scientificName）準確無誤，並優先使用香港及華南地區的常見植物名稱。
 
 { "plantName": "植物的中文名稱", "scientificName": "植物的拉丁學名（例如：Bauhinia × blakeana）", "plantType": "判斷植物屬於'非維管植物'、'蕨類植物'、'雙子葉植物'、'單子葉植物'、'裸子植物'或'非植物'", "funFact": "一段關於此植物的簡短有趣知識", "quiz": { "question": "根據知識點設計一個單選題", "options": ["選項A", "選項B", "正確答案C"], "correctAnswerIndex": 2 } }`;
-        const API_KEY = "AIzaSyBEQ5gklJF1MQ0pfb_b9gGdxO8Ywm95BsM";
-        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`;
+        const apiPath = 'v1beta/models/gemini-2.5-flash-preview-05-20:generateContent';
         const payload = { contents: [{ role: "user", parts: [ { text: prompt }, { inlineData: { mimeType: "image/png", data: base64ImageData } } ] }], generationConfig: { responseMimeType: "application/json" } };
 
         try {
+            const apiKey = getStoredApiKey();
+            if (!apiKey) {
+                showModal(`<h3 class="text-xl font-bold text-emerald-700 mb-3">未設定 Gemini API Key</h3><p class="text-sm text-gray-600 mb-4">請先到「設定」輸入你的 Gemini API Key 才能使用 AI 功能。</p><button id="open-settings-btn" class="modal-close-btn btn bg-emerald-500 text-white font-bold py-2 px-6 rounded-full">前往設定</button>`);
+                setTimeout(() => {
+                    const btn = document.getElementById('open-settings-btn');
+                    if (btn) btn.addEventListener('click', () => { hideModal(); openSettingsModal(); });
+                }, 50);
+                throw new Error('Gemini API Key 未設定');
+            }
+
+            const API_URL = `https://generativelanguage.googleapis.com/${apiPath}?key=${apiKey}`;
             const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) {
                 const errorText = await response.text();
@@ -847,7 +868,12 @@
             }
         });
         document.getElementById('feed-btn-trigger').addEventListener('click', showFeedOptions);
-        document.getElementById('achievements-btn').addEventListener('click', () => { navigateTo('achievements'); renderAchievements(); });
+    document.getElementById('achievements-btn').addEventListener('click', () => { navigateTo('achievements'); renderAchievements(); });
+    // Settings button: open modal to input Gemini API Key (stored in localStorage)
+    const settingsBtn = document.getElementById('settings-btn');
+    if (settingsBtn) settingsBtn.addEventListener('click', openSettingsModal);
+    const settingsBtnEl = document.getElementById('settings-btn');
+    if (settingsBtnEl) settingsBtnEl.addEventListener('click', openSettingsModal);
         Object.keys(navButtons).forEach(key => { if (navButtons[key]) navButtons[key].addEventListener('click', () => navigateTo(key)); });
         captureBtn.addEventListener('click', capturePhoto);
         cancelCameraBtn.addEventListener('click', () => { stopCamera(); navigateTo('home'); });
