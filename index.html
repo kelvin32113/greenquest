@@ -345,7 +345,7 @@
     // Test Gemini key by calling a lightweight generateContent request
     async function testGeminiKey(key) {
         if (!key) return { ok: false, message: '金鑰為空' };
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${key}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent?key=${key}`;
         // Minimal prompt to test connectivity
         const payload = {
             contents: [{ role: 'user', parts: [{ text: '請回傳一個簡短的字串: 測試' }] }],
@@ -496,7 +496,7 @@
             }, 10);
             return;
         }
-        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent?key=${API_KEY}`;
         const payload = { 
             contents: [{ role: "user", parts: [{ text: prompt }] }], 
             generationConfig: { responseMimeType: "application/json" } 
@@ -670,7 +670,7 @@
             gameState.isProcessing = false;
             return;
         }
-        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent?key=${API_KEY}`;
         const payload = { contents: [{ role: "user", parts: [ { text: prompt }, { inlineData: { mimeType: "image/png", data: base64ImageData } } ] }], generationConfig: { responseMimeType: "application/json" } };
 
         try {
