@@ -302,6 +302,7 @@
             <input id="gemini-key-input" type="text" placeholder="輸入 Gemin e API Key" value="${currentKey}" class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
             <div class="flex gap-3">
                 <button id="save-gemini-key" class="modal-close-btn btn bg-emerald-500 text-white font-bold py-2 px-4 rounded-full">儲存</button>
+                <button id="test-gemini-key" class="btn bg-emerald-200 text-emerald-800 font-bold py-2 px-4 rounded-full">測試金鑰</button>
                 <button id="clear-gemini-key" class="btn bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full">清除</button>
             </div>
             <p class="text-xs text-gray-500 mt-3">提示：若尚未設定金鑰，部分 AI 功能會無法使用。</p>
@@ -312,11 +313,26 @@
             const saveBtn = document.getElementById('save-gemini-key');
             const clearBtn = document.getElementById('clear-gemini-key');
             const input = document.getElementById('gemini-key-input');
+            const testBtn = document.getElementById('test-gemini-key');
             if (saveBtn) saveBtn.addEventListener('click', () => {
                 const val = input.value.trim();
                 saveGeminiApiKey(val);
                 hideModal();
                 queueNotification(`<div class="text-4xl mb-2">🔐</div><h3 class="text-lg font-bold">金鑰已儲存</h3><p class="text-sm text-gray-600">已將金鑰儲存在本機。</p>`, () => {});
+            });
+            if (testBtn) testBtn.addEventListener('click', async () => {
+                const val = input.value.trim();
+                // show a small loading modal
+                showModal(`<div class="animate-spin rounded-full h-12 w-12 border-b-4 border-emerald-500 mx-auto mb-4"></div><p class="text-sm text-gray-600">正在測試金鑰，請稍候...</p>`);
+                try {
+                    const result = await testGeminiKey(val);
+                    hideModal();
+                    const okMsg = result.ok ? `<div class="text-4xl mb-2">✅</div><h3 class="text-lg font-bold">金鑰可用</h3><p class="text-sm text-gray-600">已成功連線至 Gemini API。</p>` : `<div class="text-4xl mb-2">❌</div><h3 class="text-lg font-bold">測試失敗</h3><p class="text-sm text-gray-600">${result.message}</p>`;
+                    queueNotification(okMsg, () => {});
+                } catch (err) {
+                    hideModal();
+                    queueNotification(`<div class="text-4xl mb-2">❌</div><h3 class="text-lg font-bold">測試失敗</h3><p class="text-sm text-gray-600">${err && err.message ? err.message : err}</p>`, () => {});
+                }
             });
             if (clearBtn) clearBtn.addEventListener('click', () => {
                 saveGeminiApiKey('');
@@ -324,6 +340,28 @@
                 queueNotification(`<div class="text-4xl mb-2">🗑️</div><h3 class="text-lg font-bold">已清除金鑰</h3><p class="text-sm text-gray-600">本機的 Gemini 金鑰已移除。</p>`, () => {});
             });
         }, 10);
+    }
+
+    // Test Gemini key by calling a lightweight generateContent request
+    async function testGeminiKey(key) {
+        if (!key) return { ok: false, message: '金鑰為空' };
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${key}`;
+        // Minimal prompt to test connectivity
+        const payload = {
+            contents: [{ role: 'user', parts: [{ text: '請回傳一個簡短的字串: 測試' }] }],
+            generationConfig: { responseMimeType: 'text/plain' }
+        };
+        try {
+            const resp = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!resp.ok) {
+                const text = await resp.text();
+                return { ok: false, message: `HTTP ${resp.status}: ${text}` };
+            }
+            const json = await resp.json();
+            return { ok: true, message: JSON.stringify(json).slice(0, 200) };
+        } catch (e) {
+            return { ok: false, message: e.message || String(e) };
+        }
     }
 
     function navigateTo(screenName) {
